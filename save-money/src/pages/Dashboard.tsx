@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   deleteTransaction,
   getTransactions,
@@ -14,19 +14,51 @@ interface DashboardProps {
   onCreateTransaction: () => void;
 }
 
-function sortTransactionsByDate(transactions: Transaction[]): Transaction[] {
-  return [...transactions].sort((firstTransaction, secondTransaction) =>
-    secondTransaction.date.localeCompare(firstTransaction.date),
-  );
-}
-
 function Dashboard({ onCreateTransaction }: DashboardProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>(() =>
-    sortTransactionsByDate(getTransactions()),
-  );
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTransactions() {
+      try {
+        const loadedTransactions = await getTransactions();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setTransactions(loadedTransactions);
+        setErrorMessage("");
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel carregar as transacoes.",
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadTransactions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const summary = calculateTransactionSummary(transactions);
 
-  function handleDeleteTransaction(transactionId: string) {
+  async function handleDeleteTransaction(transactionId: string) {
     const shouldDelete = window.confirm(
       "Tem certeza que deseja excluir esta transacao?",
     );
@@ -35,13 +67,21 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
       return;
     }
 
-    deleteTransaction(transactionId);
+    try {
+      await deleteTransaction(transactionId);
 
-    setTransactions((currentTransactions) =>
-      currentTransactions.filter(
-        (transaction) => transaction.id !== transactionId,
-      ),
-    );
+      setTransactions((currentTransactions) =>
+        currentTransactions.filter(
+          (transaction) => transaction.id !== transactionId,
+        ),
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel excluir a transacao.",
+      );
+    }
   }
 
   return (
@@ -51,7 +91,7 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
           <p className="page-eyebrow">Visao geral</p>
           <h2 className="page-title">Controle Financeiro</h2>
           <p className="helper-text">
-            Acompanhe seu saldo, entenda seus gastos e visualize as ultimas movimentacoes.
+            Agora a dashboard esta lendo dados reais do PostgreSQL via API.
           </p>
         </div>
 
@@ -97,7 +137,11 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
           </span>
         </div>
 
-        {transactions.length === 0 ? (
+        {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
+
+        {isLoading ? (
+          <p className="empty-state">Carregando transacoes...</p>
+        ) : transactions.length === 0 ? (
           <p className="empty-state">
             Nenhuma transacao registrada ainda. Cadastre a primeira para ver o resumo funcionando.
           </p>
@@ -119,7 +163,7 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
                   </div>
 
                   <p className="transaction-meta">
-                    {transaction.category} - {formatDate(transaction.date)}
+                    {transaction.category} - {transaction.accountName} - {formatDate(transaction.date)}
                   </p>
 
                   {transaction.description ? (
