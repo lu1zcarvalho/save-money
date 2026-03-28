@@ -5,6 +5,7 @@ import {
 } from "../services/transactionService";
 import type { Transaction } from "../types/transaction";
 import {
+  calculateCategoryTransactionSummaries,
   calculateMonthlyTransactionSummaries,
   calculateTransactionSummary,
   formatCurrency,
@@ -68,6 +69,12 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
   const selectedMonthSummary =
     monthlySummaries.find((monthSummary) => monthSummary.monthKey === activeMonthKey) ??
     null;
+  const expenseCategorySummaries = selectedMonthSummary
+    ? calculateCategoryTransactionSummaries(selectedMonthSummary.expenses, "expense")
+    : [];
+  const incomeCategorySummaries = selectedMonthSummary
+    ? calculateCategoryTransactionSummaries(selectedMonthSummary.incomes, "income")
+    : [];
 
   async function handleDeleteTransaction(transactionId: string) {
     const shouldDelete = window.confirm(
@@ -218,6 +225,90 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
               </strong>
             </article>
           </section>
+
+          <div className="category-summary-grid">
+            <article className="ledger-card">
+              <div className="ledger-header">
+                <div>
+                  <p className="page-eyebrow">Categoria</p>
+                  <h3 className="ledger-title">Entradas por categoria</h3>
+                </div>
+                <strong className="income-text">
+                  {formatCurrency(selectedMonthSummary.incomeTotal)}
+                </strong>
+              </div>
+
+              {incomeCategorySummaries.length === 0 ? (
+                <p className="empty-state compact-empty-state">
+                  Nenhuma entrada categorizada neste mes.
+                </p>
+              ) : (
+                <ul className="category-summary-list">
+                  {incomeCategorySummaries.map((categorySummary) => (
+                    <li
+                      className="category-summary-item"
+                      key={`income-${categorySummary.category}`}
+                    >
+                      <div>
+                        <strong>{categorySummary.category}</strong>
+                        <p className="transaction-meta">
+                          {categorySummary.transactionCount} transa
+                          {categorySummary.transactionCount === 1 ? "cao" : "coes"}
+                          {categorySummary.percentage !== null
+                            ? ` - ${categorySummary.percentage.toFixed(1)}% do total`
+                            : ""}
+                        </p>
+                      </div>
+                      <strong className="income-text">
+                        {formatCurrency(categorySummary.total)}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+
+            <article className="ledger-card">
+              <div className="ledger-header">
+                <div>
+                  <p className="page-eyebrow">Categoria</p>
+                  <h3 className="ledger-title">Saidas por categoria</h3>
+                </div>
+                <strong className="expense-text">
+                  {formatCurrency(selectedMonthSummary.expenseTotal)}
+                </strong>
+              </div>
+
+              {expenseCategorySummaries.length === 0 ? (
+                <p className="empty-state compact-empty-state">
+                  Nenhuma saida categorizada neste mes.
+                </p>
+              ) : (
+                <ul className="category-summary-list">
+                  {expenseCategorySummaries.map((categorySummary) => (
+                    <li
+                      className="category-summary-item"
+                      key={`expense-${categorySummary.category}`}
+                    >
+                      <div>
+                        <strong>{categorySummary.category}</strong>
+                        <p className="transaction-meta">
+                          {categorySummary.transactionCount} transa
+                          {categorySummary.transactionCount === 1 ? "cao" : "coes"}
+                          {categorySummary.percentage !== null
+                            ? ` - ${categorySummary.percentage.toFixed(1)}% do total`
+                            : ""}
+                        </p>
+                      </div>
+                      <strong className="expense-text">
+                        {formatCurrency(categorySummary.total)}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          </div>
 
           <div className="monthly-detail-grid">
             <article className="ledger-card">

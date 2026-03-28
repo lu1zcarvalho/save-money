@@ -1,4 +1,4 @@
-import type { Transaction } from "../types/transaction";
+import type { Transaction, TransactionType } from "../types/transaction";
 
 interface TransactionSummary {
   incomeTotal: number;
@@ -13,6 +13,13 @@ export interface MonthlyTransactionSummary extends TransactionSummary {
   transactions: Transaction[];
   incomes: Transaction[];
   expenses: Transaction[];
+}
+
+export interface CategoryTransactionSummary {
+  category: string;
+  total: number;
+  transactionCount: number;
+  percentage: number | null;
 }
 
 export function calculateTransactionSummary(
@@ -109,4 +116,42 @@ export function calculateMonthlyTransactionSummaries(
         expenses,
       };
     });
+}
+
+export function calculateCategoryTransactionSummaries(
+  transactions: Transaction[],
+  type: TransactionType,
+): CategoryTransactionSummary[] {
+  const filteredTransactions = transactions.filter(
+    (transaction) => transaction.type === type,
+  );
+  const totalAmount = filteredTransactions.reduce(
+    (sum, transaction) => sum + transaction.amount,
+    0,
+  );
+  const categoryMap = new Map<string, CategoryTransactionSummary>();
+
+  for (const transaction of filteredTransactions) {
+    const currentCategory = categoryMap.get(transaction.category);
+
+    if (currentCategory) {
+      currentCategory.total += transaction.amount;
+      currentCategory.transactionCount += 1;
+      continue;
+    }
+
+    categoryMap.set(transaction.category, {
+      category: transaction.category,
+      total: transaction.amount,
+      transactionCount: 1,
+      percentage: null,
+    });
+  }
+
+  return Array.from(categoryMap.values())
+    .map((summary) => ({
+      ...summary,
+      percentage: totalAmount > 0 ? (summary.total / totalAmount) * 100 : null,
+    }))
+    .sort((firstCategory, secondCategory) => secondCategory.total - firstCategory.total);
 }
