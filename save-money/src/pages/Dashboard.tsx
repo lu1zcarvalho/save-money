@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
 import { getTransactions } from "../services/transactionService";
-import type { Transaction } from "../types/transaction";
 import {
   calculateTransactionSummary,
   formatCurrency,
@@ -8,21 +6,13 @@ import {
 } from "../utils/transactionUtils";
 
 interface DashboardProps {
-  refreshKey: number;
   onCreateTransaction: () => void;
 }
 
-function Dashboard({ refreshKey, onCreateTransaction }: DashboardProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  useEffect(() => {
-    const savedTransactions = getTransactions().sort((firstTransaction, secondTransaction) =>
-      secondTransaction.date.localeCompare(firstTransaction.date),
-    );
-
-    setTransactions(savedTransactions);
-  }, [refreshKey]);
-
+function Dashboard({ onCreateTransaction }: DashboardProps) {
+  const transactions = getTransactions().sort((firstTransaction, secondTransaction) =>
+    secondTransaction.date.localeCompare(firstTransaction.date),
+  );
   const summary = calculateTransactionSummary(transactions);
 
   return (

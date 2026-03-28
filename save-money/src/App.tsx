@@ -6,7 +6,6 @@ type AppPage = "dashboard" | "new-transaction";
 
 function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
-  const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
 
   function goToDashboard() {
     setCurrentPage("dashboard");
@@ -17,7 +16,6 @@ function App() {
   }
 
   function handleTransactionCreated() {
-    setDashboardRefreshKey((currentValue) => currentValue + 1);
     goToDashboard();
   }
 
@@ -49,10 +47,7 @@ function App() {
       </header>
 
       {currentPage === "dashboard" ? (
-        <Dashboard
-          refreshKey={dashboardRefreshKey}
-          onCreateTransaction={goToNewTransaction}
-        />
+        <Dashboard onCreateTransaction={goToNewTransaction} />
       ) : (
         <NewTransaction
           onCancel={goToDashboard}
