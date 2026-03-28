@@ -1,16 +1,16 @@
 # Banco de dados do projeto
 
-Este projeto agora possui uma base local de PostgreSQL para desenvolvimento.
+Este projeto usa PostgreSQL local em Docker para desenvolvimento.
 
-## O que existe aqui
+## Arquivos desta pasta
 
-- `docker-compose.yml`: sobe um container do PostgreSQL.
-- `database/init/001_schema.sql`: cria a estrutura inicial do banco.
-- `database/init/002_seed_categories.sql`: cadastra categorias iniciais do sistema.
+- [`init/001_schema.sql`](/C:/Users/Luiz/Desktop/save-money/save-money/database/init/001_schema.sql): cria tipos, tabelas, índices e triggers
+- [`init/002_seed_categories.sql`](/C:/Users/Luiz/Desktop/save-money/save-money/database/init/002_seed_categories.sql): insere categorias padrão
+- [`SCHEMA_GUIDE.md`](/C:/Users/Luiz/Desktop/save-money/save-money/database/SCHEMA_GUIDE.md): explica a modelagem do banco
 
 ## Como subir o banco
 
-No diretório raiz do projeto, execute:
+Na raiz do projeto:
 
 ```bash
 docker compose up -d
@@ -28,17 +28,60 @@ Para parar e remover os dados persistidos:
 docker compose down -v
 ```
 
-## Como conectar no Beekeeper Studio
+## Configuração da conexão
+
+O container foi publicado na porta `5433` porque a máquina já tinha outro PostgreSQL local na `5432`.
 
 Use estes dados:
 
 - Host: `127.0.0.1`
-- Porta: `5432`
+- Porta: `5433`
 - Banco: `save_money`
 - Usuário: `save_money_user`
 - Senha: `save_money_pass`
 
-## Observação importante
+Esses valores existem apenas para desenvolvimento local.
+Nao use essas credenciais em ambiente de producao.
 
-O front-end ainda está usando `localStorage`.
-Este banco já deixa o projeto preparado para a próxima etapa: criar uma API/backend e migrar a persistência real para o PostgreSQL.
+## Beekeeper Studio
+
+Crie uma conexão PostgreSQL com esses dados.
+
+Depois de conectar, você deve ver:
+
+- `users`
+- `accounts`
+- `categories`
+- `transactions`
+
+## Consultas úteis
+
+Listar categorias:
+
+```sql
+SELECT * FROM categories;
+```
+
+Listar transações:
+
+```sql
+SELECT * FROM transactions;
+```
+
+Listar usuários:
+
+```sql
+SELECT id, full_name, email, created_at
+FROM users;
+```
+
+## Papel do banco no sistema
+
+O PostgreSQL é a fonte de verdade da aplicação.
+
+Fluxo real:
+
+1. o frontend chama a API
+2. a API valida o token e os dados
+3. a API lê ou grava no PostgreSQL
+4. o frontend renderiza o resultado
