@@ -1,40 +1,33 @@
-import type { Transaction } from "../types/transaction";
+import type {
+  CreateTransactionInput,
+  Transaction,
+} from "../types/transaction";
+import { apiRequest } from "./api";
 
-const STORAGE_KEY = "save-money:transactions";
-
-export function getTransactions(): Transaction[] {
-  const data = localStorage.getItem(STORAGE_KEY);
-
-  if (!data) {
-    return [];
-  }
-
-  try {
-    const parsedData: unknown = JSON.parse(data);
-
-    if (!Array.isArray(parsedData)) {
-      return [];
-    }
-
-    return parsedData as Transaction[];
-  } catch {
-    return [];
-  }
-}
-
-export function saveTransaction(transaction: Transaction): void {
-  const transactions = getTransactions();
-  const updatedTransactions = [...transactions, transaction];
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTransactions));
-}
-
-export function deleteTransaction(transactionId: string): void {
-  const transactions = getTransactions();
-
-  const updatedTransactions = transactions.filter(
-    (transaction) => transaction.id !== transactionId,
+export async function getTransactions(): Promise<Transaction[]> {
+  const response = await apiRequest<{ transactions: Transaction[] }>(
+    "/transactions",
   );
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTransactions));
+  return response.transactions;
+}
+
+export async function saveTransaction(
+  transaction: CreateTransactionInput,
+): Promise<Transaction> {
+  const response = await apiRequest<{ transaction: Transaction }>(
+    "/transactions",
+    {
+      method: "POST",
+      body: JSON.stringify(transaction),
+    },
+  );
+
+  return response.transaction;
+}
+
+export async function deleteTransaction(transactionId: string): Promise<void> {
+  await apiRequest<void>(`/transactions/${transactionId}`, {
+    method: "DELETE",
+  });
 }
