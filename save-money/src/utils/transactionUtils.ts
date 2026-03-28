@@ -6,6 +6,15 @@ interface TransactionSummary {
   balance: number;
 }
 
+export interface MonthlyTransactionSummary extends TransactionSummary {
+  monthKey: string;
+  monthLabel: string;
+  expensePercentage: number | null;
+  transactions: Transaction[];
+  incomes: Transaction[];
+  expenses: Transaction[];
+}
+
 export function calculateTransactionSummary(
   transactions: Transaction[],
 ): TransactionSummary {
@@ -44,4 +53,60 @@ export function formatDate(date: string): string {
   }
 
   return `${day}/${month}/${year}`;
+}
+
+export function formatMonthYear(monthKey: string): string {
+  const [year, month] = monthKey.split("-");
+
+  if (!year || !month) {
+    return monthKey;
+  }
+
+  const parsedDate = new Date(Number(year), Number(month) - 1, 1);
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
+}
+
+export function calculateMonthlyTransactionSummaries(
+  transactions: Transaction[],
+): MonthlyTransactionSummary[] {
+  const monthlyMap = new Map<string, Transaction[]>();
+
+  for (const transaction of transactions) {
+    const monthKey = transaction.date.slice(0, 7);
+    const currentTransactions = monthlyMap.get(monthKey) ?? [];
+
+    currentTransactions.push(transaction);
+    monthlyMap.set(monthKey, currentTransactions);
+  }
+
+  return Array.from(monthlyMap.entries())
+    .sort((firstMonth, secondMonth) => firstMonth[0].localeCompare(secondMonth[0]))
+    .map(([monthKey, monthTransactions]) => {
+      const summary = calculateTransactionSummary(monthTransactions);
+      const incomes = monthTransactions.filter(
+        (transaction) => transaction.type === "income",
+      );
+      const expenses = monthTransactions.filter(
+        (transaction) => transaction.type === "expense",
+      );
+
+      return {
+        monthKey,
+        monthLabel: formatMonthYear(monthKey),
+        incomeTotal: summary.incomeTotal,
+        expenseTotal: summary.expenseTotal,
+        balance: summary.balance,
+        expensePercentage:
+          summary.incomeTotal > 0
+            ? (summary.expenseTotal / summary.incomeTotal) * 100
+            : null,
+        transactions: monthTransactions,
+        incomes,
+        expenses,
+      };
+    });
 }
