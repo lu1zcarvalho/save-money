@@ -28,3 +28,13 @@ export function saveTransaction(transaction: Transaction): void {
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTransactions));
 }
+
+export function deleteTransaction(transactionId: string): void {
+  const transactions = getTransactions();
+
+  const updatedTransactions = transactions.filter(
+    (transaction) => transaction.id !== transactionId,
+  );
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTransactions));
+}

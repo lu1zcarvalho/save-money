@@ -1,4 +1,9 @@
-import { getTransactions } from "../services/transactionService";
+import { useState } from "react";
+import {
+  deleteTransaction,
+  getTransactions,
+} from "../services/transactionService";
+import type { Transaction } from "../types/transaction";
 import {
   calculateTransactionSummary,
   formatCurrency,
@@ -9,11 +14,35 @@ interface DashboardProps {
   onCreateTransaction: () => void;
 }
 
-function Dashboard({ onCreateTransaction }: DashboardProps) {
-  const transactions = getTransactions().sort((firstTransaction, secondTransaction) =>
+function sortTransactionsByDate(transactions: Transaction[]): Transaction[] {
+  return [...transactions].sort((firstTransaction, secondTransaction) =>
     secondTransaction.date.localeCompare(firstTransaction.date),
   );
+}
+
+function Dashboard({ onCreateTransaction }: DashboardProps) {
+  const [transactions, setTransactions] = useState<Transaction[]>(() =>
+    sortTransactionsByDate(getTransactions()),
+  );
   const summary = calculateTransactionSummary(transactions);
+
+  function handleDeleteTransaction(transactionId: string) {
+    const shouldDelete = window.confirm(
+      "Tem certeza que deseja excluir esta transacao?",
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    deleteTransaction(transactionId);
+
+    setTransactions((currentTransactions) =>
+      currentTransactions.filter(
+        (transaction) => transaction.id !== transactionId,
+      ),
+    );
+  }
 
   return (
     <main className="page">
@@ -96,6 +125,16 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
                   {transaction.description ? (
                     <p className="transaction-description">{transaction.description}</p>
                   ) : null}
+
+                  <div className="transaction-actions">
+                    <button
+                      className="delete-button"
+                      type="button"
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}

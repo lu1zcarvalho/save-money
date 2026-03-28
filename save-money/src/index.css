@@ -248,6 +248,30 @@ button {
   line-height: 1.5;
 }
 
+.transaction-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.delete-button {
+  border: 1px solid #dc2626;
+  border-radius: 999px;
+  background: transparent;
+  color: #dc2626;
+  padding: 10px 14px;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.delete-button:hover {
+  background: #dc2626;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
 .empty-state {
   margin-top: 20px;
   padding: 18px;
