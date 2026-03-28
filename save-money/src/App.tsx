@@ -10,11 +10,27 @@ import {
 import type { AuthResponse, User } from "./types/auth";
 
 type AppPage = "dashboard" | "new-transaction";
+type ThemeMode = "light" | "dark";
+
+const THEME_STORAGE_KEY = "save-money:theme";
+
+function getInitialTheme(): ThemeMode {
+  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+
+  if (storedTheme === "light" || storedTheme === "dark") {
+    return storedTheme;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
 
 function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
 
   useEffect(() => {
     async function loadSession() {
@@ -36,6 +52,11 @@ function App() {
 
     void loadSession();
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   function goToDashboard() {
     setCurrentPage("dashboard");
@@ -60,9 +81,24 @@ function App() {
     setCurrentPage("dashboard");
   }
 
+  function toggleTheme() {
+    setTheme((currentTheme) =>
+      currentTheme === "light" ? "dark" : "light",
+    );
+  }
+
+  const themeButtonLabel =
+    theme === "light" ? "Ativar modo escuro" : "Ativar modo claro";
+
   if (isCheckingSession) {
     return (
       <main className="app-shell">
+        <div className="app-toolbar">
+          <button className="nav-button" type="button" onClick={toggleTheme}>
+            {themeButtonLabel}
+          </button>
+        </div>
+
         <section className="card centered-card">
           <p className="page-eyebrow">Autenticacao</p>
           <h1 className="brand-title">Save Money</h1>
@@ -75,6 +111,12 @@ function App() {
   if (!currentUser) {
     return (
       <main className="app-shell">
+        <div className="app-toolbar">
+          <button className="nav-button" type="button" onClick={toggleTheme}>
+            {themeButtonLabel}
+          </button>
+        </div>
+
         <Auth onAuthSuccess={handleAuthSuccess} />
       </main>
     );
@@ -104,6 +146,10 @@ function App() {
             onClick={goToNewTransaction}
           >
             Nova transacao
+          </button>
+
+          <button className="nav-button" type="button" onClick={toggleTheme}>
+            {theme === "light" ? "Modo escuro" : "Modo claro"}
           </button>
 
           <button className="nav-button" type="button" onClick={handleLogout}>
