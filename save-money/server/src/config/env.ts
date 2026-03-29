@@ -17,6 +17,10 @@ function getRequiredEnv(variableName: string): string {
 export const env = {
   port: Number(process.env.PORT ?? 3333),
   databaseUrl: getRequiredEnv("DATABASE_URL"),
+  databaseSsl: process.env.DATABASE_SSL === "true",
   jwtSecret: getRequiredEnv("JWT_SECRET"),
-  clientOrigin: process.env.CLIENT_ORIGIN ?? "http://127.0.0.1:5173",
+  clientOrigins: (process.env.CLIENT_ORIGIN ?? "http://127.0.0.1:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
 };

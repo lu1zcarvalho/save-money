@@ -23,7 +23,7 @@ const globalApiLimiter = rateLimit({
 
 app.use(
   cors({
-    origin: [env.clientOrigin, "http://localhost:5173"],
+    origin: [...env.clientOrigins, "http://localhost:5173"],
   }),
 );
 app.use(
