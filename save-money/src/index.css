@@ -93,6 +93,7 @@ button {
 .topbar,
 .page-header,
 .section-heading,
+.section-actions,
 .transaction-header,
 .form-actions,
 .nav-actions {
@@ -186,6 +187,18 @@ button {
 .nav-button-primary:hover {
   border-color: var(--accent-strong);
   background: var(--accent-strong);
+}
+
+.nav-button-danger {
+  border-color: var(--danger);
+  background: transparent;
+  color: var(--danger);
+}
+
+.nav-button-danger:hover {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
 }
 
 .page {
@@ -600,6 +613,7 @@ button {
   .topbar,
   .page-header,
   .section-heading,
+  .section-actions,
   .transaction-header,
   .form-actions {
     align-items: flex-start;
