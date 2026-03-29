@@ -136,6 +136,21 @@ router.post("/", async (request, response) => {
   });
 });
 
+router.delete("/", async (request, response) => {
+  const result = await pool.query(
+    `
+      DELETE FROM transactions
+      WHERE user_id = $1
+      RETURNING id
+    `,
+    [request.auth?.userId],
+  );
+
+  response.json({
+    deletedCount: result.rowCount ?? 0,
+  });
+});
+
 router.delete("/:id", async (request, response) => {
   const transactionId = request.params.id;
 

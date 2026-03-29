@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { getBudgets, saveBudget } from "../services/budgetService";
 import { getCategories } from "../services/categoryService";
 import {
+  deleteAllTransactions,
   deleteTransaction,
   getTransactions,
 } from "../services/transactionService";
@@ -29,6 +30,7 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [budgetErrorMessage, setBudgetErrorMessage] = useState("");
   const [budgetSuccessMessage, setBudgetSuccessMessage] = useState("");
+  const [transactionSuccessMessage, setTransactionSuccessMessage] = useState("");
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
   const [budgetCategoryId, setBudgetCategoryId] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
@@ -52,6 +54,7 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
         setExpenseCategories(loadedExpenseCategories);
         setBudgetCategoryId(loadedExpenseCategories[0]?.id ?? "");
         setErrorMessage("");
+        setTransactionSuccessMessage("");
       } catch (error) {
         if (!isMounted) {
           return;
@@ -213,12 +216,56 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
           (transaction) => transaction.id !== transactionId,
         ),
       );
+      setTransactionSuccessMessage("Transacao excluida com sucesso.");
+      setErrorMessage("");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
           : "Nao foi possivel excluir a transacao.",
       );
+      setTransactionSuccessMessage("");
+    }
+  }
+
+  async function handleDeleteAllTransactions() {
+    const shouldDelete = window.confirm(
+      "Esta acao vai excluir todas as suas transacoes. Deseja continuar?",
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    const confirmationText = window.prompt(
+      "Para confirmar, digite APAGAR no campo abaixo.",
+      "",
+    );
+
+    if (confirmationText !== "APAGAR") {
+      setErrorMessage("Exclusao cancelada. O texto de confirmacao nao foi informado corretamente.");
+      setTransactionSuccessMessage("");
+      return;
+    }
+
+    try {
+      const deletedCount = await deleteAllTransactions();
+
+      setTransactions([]);
+      setSelectedMonthKey(null);
+      setErrorMessage("");
+      setTransactionSuccessMessage(
+        deletedCount > 0
+          ? `${deletedCount} transacoes foram excluidas com sucesso.`
+          : "Nao havia transacoes para excluir.",
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel excluir todas as transacoes.",
+      );
+      setTransactionSuccessMessage("");
     }
   }
 
@@ -711,12 +758,27 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
             <h2 className="section-title">Transacoes recentes</h2>
           </div>
 
-          <span className="section-badge">
-            {transactions.length} transa{transactions.length === 1 ? "cao" : "coes"}
-          </span>
+          <div className="section-actions">
+            <span className="section-badge">
+              {transactions.length} transa{transactions.length === 1 ? "cao" : "coes"}
+            </span>
+
+            {transactions.length > 0 ? (
+              <button
+                className="nav-button nav-button-danger"
+                type="button"
+                onClick={handleDeleteAllTransactions}
+              >
+                Excluir todas
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
+        {transactionSuccessMessage ? (
+          <p className="success-message">{transactionSuccessMessage}</p>
+        ) : null}
 
         {isLoading ? (
           <p className="empty-state">Carregando transacoes...</p>

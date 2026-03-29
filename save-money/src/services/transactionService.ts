@@ -31,3 +31,11 @@ export async function deleteTransaction(transactionId: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+export async function deleteAllTransactions(): Promise<number> {
+  const response = await apiRequest<{ deletedCount: number }>("/transactions", {
+    method: "DELETE",
+  });
+
+  return response.deletedCount;
+}
