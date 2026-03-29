@@ -13,6 +13,10 @@ type AppPage = "dashboard" | "new-transaction";
 type ThemeMode = "light" | "dark";
 
 const THEME_STORAGE_KEY = "save-money:theme";
+const CURRENT_YEAR = new Date().getFullYear();
+const COPYRIGHT_NOTICE = `© ${CURRENT_YEAR} Save Money. Interface, identidade visual e codigo-fonte protegidos pela legislacao autoral aplicavel.`;
+const COPYRIGHT_DETAILS =
+  "Reproducao, distribuicao, modificacao ou uso comercial dependem de autorizacao do titular, salvo quando permitido por lei ou por licenca especifica.";
 
 function getInitialTheme(): ThemeMode {
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -104,6 +108,11 @@ function App() {
           <h1 className="brand-title">Save Money</h1>
           <p className="helper-text">Verificando sua sessao...</p>
         </section>
+
+        <footer className="app-footer">
+          <p>{COPYRIGHT_NOTICE}</p>
+          <p>{COPYRIGHT_DETAILS}</p>
+        </footer>
       </main>
     );
   }
@@ -118,6 +127,11 @@ function App() {
         </div>
 
         <Auth onAuthSuccess={handleAuthSuccess} />
+
+        <footer className="app-footer">
+          <p>{COPYRIGHT_NOTICE}</p>
+          <p>{COPYRIGHT_DETAILS}</p>
+        </footer>
       </main>
     );
   }
@@ -166,6 +180,11 @@ function App() {
           onSave={handleTransactionCreated}
         />
       )}
+
+      <footer className="app-footer">
+        <p>{COPYRIGHT_NOTICE}</p>
+        <p>{COPYRIGHT_DETAILS}</p>
+      </footer>
     </div>
   );
 }
