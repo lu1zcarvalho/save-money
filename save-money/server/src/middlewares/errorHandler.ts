@@ -9,6 +9,8 @@ export function errorHandler(
 ) {
   void _next;
 
+  console.error(error);
+
   if (error instanceof ZodError) {
     response.status(400).json({
       message: "Dados invalidos.",
@@ -18,7 +20,7 @@ export function errorHandler(
   }
 
   if (error instanceof Error) {
-    response.status(500).json({ message: error.message });
+    response.status(500).json({ message: "Erro interno do servidor." });
     return;
   }
 

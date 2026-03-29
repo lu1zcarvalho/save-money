@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { getBudgets, saveBudget } from "../services/budgetService";
+import { getCategories } from "../services/categoryService";
 import {
   deleteTransaction,
   getTransactions,
 } from "../services/transactionService";
+import type { CategoryBudget } from "../types/budget";
+import type { Category } from "../types/category";
 import type { Transaction } from "../types/transaction";
 import {
   calculateCategoryTransactionSummaries,
@@ -18,22 +22,35 @@ interface DashboardProps {
 
 function Dashboard({ onCreateTransaction }: DashboardProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
+  const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [budgetErrorMessage, setBudgetErrorMessage] = useState("");
+  const [budgetSuccessMessage, setBudgetSuccessMessage] = useState("");
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
+  const [budgetCategoryId, setBudgetCategoryId] = useState("");
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadTransactions() {
+    async function loadDashboardData() {
       try {
-        const loadedTransactions = await getTransactions();
+        const [loadedTransactions, loadedExpenseCategories] = await Promise.all([
+          getTransactions(),
+          getCategories("expense"),
+        ]);
 
         if (!isMounted) {
           return;
         }
 
         setTransactions(loadedTransactions);
+        setExpenseCategories(loadedExpenseCategories);
+        setBudgetCategoryId(loadedExpenseCategories[0]?.id ?? "");
         setErrorMessage("");
       } catch (error) {
         if (!isMounted) {
@@ -52,7 +69,7 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
       }
     }
 
-    void loadTransactions();
+    void loadDashboardData();
 
     return () => {
       isMounted = false;
@@ -75,6 +92,109 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
   const incomeCategorySummaries = selectedMonthSummary
     ? calculateCategoryTransactionSummaries(selectedMonthSummary.incomes, "income")
     : [];
+  const budgetStatusItems = expenseCategories
+    .map((category) => {
+      const categoryExpense = expenseCategorySummaries.find(
+        (summary) => summary.category === category.name,
+      );
+      const categoryBudget = budgets.find(
+        (budget) => budget.categoryId === category.id,
+      );
+
+      if (!categoryExpense && !categoryBudget) {
+        return null;
+      }
+
+      const spent = categoryExpense?.total ?? 0;
+      const budgetAmountValue = categoryBudget?.amount ?? null;
+      const remaining =
+        budgetAmountValue === null ? null : budgetAmountValue - spent;
+
+      return {
+        categoryId: category.id,
+        category: category.name,
+        spent,
+        budgetAmount: budgetAmountValue,
+        remaining,
+        percentageUsed:
+          budgetAmountValue && budgetAmountValue > 0
+            ? (spent / budgetAmountValue) * 100
+            : null,
+      };
+    })
+    .filter((item) => item !== null)
+    .sort((firstItem, secondItem) => secondItem.spent - firstItem.spent);
+  const totalBudgeted = budgets.reduce(
+    (sum, budget) => sum + budget.amount,
+    0,
+  );
+  const totalBudgetDifference =
+    totalBudgeted > 0
+      ? totalBudgeted - (selectedMonthSummary?.expenseTotal ?? 0)
+      : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBudgets() {
+      if (!activeMonthKey) {
+        setBudgets([]);
+        setBudgetErrorMessage("");
+        return;
+      }
+
+      try {
+        setIsLoadingBudgets(true);
+        const loadedBudgets = await getBudgets(activeMonthKey);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setBudgets(loadedBudgets);
+        setBudgetErrorMessage("");
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setBudgetErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel carregar os orcamentos do mes.",
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoadingBudgets(false);
+        }
+      }
+    }
+
+    void loadBudgets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeMonthKey]);
+
+  useEffect(() => {
+    if (!expenseCategories.length) {
+      setBudgetCategoryId("");
+      setBudgetAmount("");
+      return;
+    }
+
+    const nextCategoryId =
+      expenseCategories.some((category) => category.id === budgetCategoryId)
+        ? budgetCategoryId
+        : expenseCategories[0].id;
+    const currentBudget = budgets.find(
+      (budget) => budget.categoryId === nextCategoryId,
+    );
+
+    setBudgetCategoryId(nextCategoryId);
+    setBudgetAmount(currentBudget ? String(currentBudget.amount) : "");
+  }, [budgetCategoryId, budgets, expenseCategories]);
 
   async function handleDeleteTransaction(transactionId: string) {
     const shouldDelete = window.confirm(
@@ -99,6 +219,78 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
           ? error.message
           : "Nao foi possivel excluir a transacao.",
       );
+    }
+  }
+
+  function handleBudgetCategoryChange(nextCategoryId: string) {
+    setBudgetCategoryId(nextCategoryId);
+
+    const currentBudget = budgets.find(
+      (budget) => budget.categoryId === nextCategoryId,
+    );
+
+    setBudgetAmount(currentBudget ? String(currentBudget.amount) : "");
+    setBudgetSuccessMessage("");
+    setBudgetErrorMessage("");
+  }
+
+  async function handleBudgetSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!activeMonthKey) {
+      setBudgetErrorMessage("Selecione um mes antes de salvar o orcamento.");
+      return;
+    }
+
+    if (!budgetCategoryId) {
+      setBudgetErrorMessage("Escolha uma categoria para o orcamento.");
+      return;
+    }
+
+    const parsedAmount = Number(budgetAmount);
+
+    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+      setBudgetErrorMessage("Informe um valor de orcamento maior que zero.");
+      return;
+    }
+
+    try {
+      setIsSavingBudget(true);
+      const savedBudget = await saveBudget({
+        categoryId: budgetCategoryId,
+        month: activeMonthKey,
+        amount: parsedAmount,
+      });
+
+      setBudgets((currentBudgets) => {
+        const existingBudgetIndex = currentBudgets.findIndex(
+          (budget) => budget.categoryId === savedBudget.categoryId,
+        );
+
+        if (existingBudgetIndex === -1) {
+          return [...currentBudgets, savedBudget].sort((firstBudget, secondBudget) =>
+            firstBudget.category.localeCompare(secondBudget.category),
+          );
+        }
+
+        const nextBudgets = [...currentBudgets];
+        nextBudgets[existingBudgetIndex] = savedBudget;
+
+        return nextBudgets;
+      });
+
+      setBudgetAmount(String(savedBudget.amount));
+      setBudgetSuccessMessage("Orcamento salvo com sucesso para este mes.");
+      setBudgetErrorMessage("");
+    } catch (error) {
+      setBudgetErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel salvar o orcamento.",
+      );
+      setBudgetSuccessMessage("");
+    } finally {
+      setIsSavingBudget(false);
     }
   }
 
@@ -225,6 +417,136 @@ function Dashboard({ onCreateTransaction }: DashboardProps) {
               </strong>
             </article>
           </section>
+
+          <div className="budget-grid">
+            <article className="ledger-card">
+              <div className="ledger-header">
+                <div>
+                  <p className="page-eyebrow">Orcamento</p>
+                  <h3 className="ledger-title">Orcamento por categoria</h3>
+                </div>
+                <div className="budget-totals">
+                  <strong className="income-text">
+                    {formatCurrency(totalBudgeted)}
+                  </strong>
+                  <span className="transaction-meta">orcado no mes</span>
+                </div>
+              </div>
+
+              {totalBudgetDifference !== null ? (
+                <p className="budget-overview">
+                  {totalBudgetDifference >= 0
+                    ? `Voce ainda tem ${formatCurrency(totalBudgetDifference)} dentro do orcamento.`
+                    : `Voce ultrapassou o orcamento do mes em ${formatCurrency(Math.abs(totalBudgetDifference))}.`}
+                </p>
+              ) : (
+                <p className="budget-overview">
+                  Defina orcamentos mensais para comparar suas saidas com o planejado.
+                </p>
+              )}
+
+              {budgetErrorMessage ? (
+                <p className="error-message">{budgetErrorMessage}</p>
+              ) : null}
+
+              {isLoadingBudgets ? (
+                <p className="empty-state compact-empty-state">
+                  Carregando orcamentos do mes...
+                </p>
+              ) : budgetStatusItems.length === 0 ? (
+                <p className="empty-state compact-empty-state">
+                  Nenhum orcamento ou despesa cadastrada para este mes.
+                </p>
+              ) : (
+                <ul className="budget-status-list">
+                  {budgetStatusItems.map((budgetItem) => (
+                    <li
+                      className="budget-status-item"
+                      key={`budget-status-${budgetItem.categoryId}`}
+                    >
+                      <div>
+                        <strong>{budgetItem.category}</strong>
+                        <p className="transaction-meta">
+                          Gasto {formatCurrency(budgetItem.spent)}
+                          {budgetItem.budgetAmount !== null
+                            ? ` de ${formatCurrency(budgetItem.budgetAmount)}`
+                            : " sem orcamento definido"}
+                        </p>
+                      </div>
+
+                      <div className="budget-status-values">
+                        <strong
+                          className={
+                            budgetItem.remaining !== null && budgetItem.remaining < 0
+                              ? "expense-text"
+                              : "income-text"
+                          }
+                        >
+                          {budgetItem.remaining === null
+                            ? "Sem meta"
+                            : budgetItem.remaining >= 0
+                              ? `Restam ${formatCurrency(budgetItem.remaining)}`
+                              : `Excedeu ${formatCurrency(Math.abs(budgetItem.remaining))}`}
+                        </strong>
+                        <span className="transaction-meta">
+                          {budgetItem.percentageUsed !== null
+                            ? `${budgetItem.percentageUsed.toFixed(1)}% usado`
+                            : "0% usado"}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+
+            <article className="ledger-card">
+              <div className="ledger-header">
+                <div>
+                  <p className="page-eyebrow">Planejamento</p>
+                  <h3 className="ledger-title">Definir orcamento do mes</h3>
+                </div>
+              </div>
+
+              <form className="budget-form" onSubmit={handleBudgetSubmit}>
+                <label className="form-field">
+                  <span>Categoria de saida</span>
+                  <select
+                    value={budgetCategoryId}
+                    onChange={(event) => handleBudgetCategoryChange(event.target.value)}
+                  >
+                    {expenseCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="form-field">
+                  <span>Valor do orcamento</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={budgetAmount}
+                    onChange={(event) => setBudgetAmount(event.target.value)}
+                  />
+                </label>
+
+                {budgetSuccessMessage ? (
+                  <p className="success-message">{budgetSuccessMessage}</p>
+                ) : null}
+
+                <div className="form-actions budget-form-actions">
+                  <button className="nav-button nav-button-primary" type="submit">
+                    {isSavingBudget ? "Salvando..." : "Salvar orcamento"}
+                  </button>
+                </div>
+              </form>
+            </article>
+          </div>
 
           <div className="category-summary-grid">
             <article className="ledger-card">

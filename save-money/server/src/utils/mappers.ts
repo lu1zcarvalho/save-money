@@ -33,6 +33,14 @@ interface TransactionRow {
   account_name: string;
 }
 
+interface CategoryBudgetRow {
+  id: string;
+  category_id: string;
+  category_name: string;
+  amount: string | number;
+  reference_month: string;
+}
+
 export function mapUserRow(row: UserRow) {
   return {
     id: row.id,
@@ -73,5 +81,15 @@ export function mapTransactionRow(row: TransactionRow) {
     category: row.category_name ?? "Sem categoria",
     accountId: row.account_id,
     accountName: row.account_name,
+  };
+}
+
+export function mapCategoryBudgetRow(row: CategoryBudgetRow) {
+  return {
+    id: row.id,
+    categoryId: row.category_id,
+    category: row.category_name,
+    amount: Number(row.amount),
+    month: row.reference_month.slice(0, 7),
   };
 }

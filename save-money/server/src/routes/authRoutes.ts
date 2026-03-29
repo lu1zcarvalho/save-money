@@ -1,5 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { pool } from "../config/database.js";
 import { requireAuth } from "../middlewares/authMiddleware.js";
@@ -7,19 +8,36 @@ import { generateToken } from "../utils/jwt.js";
 import { mapUserRow } from "../utils/mappers.js";
 
 const router = Router();
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message:
+      "Muitas tentativas de autenticacao. Aguarde alguns minutos antes de tentar novamente.",
+  },
+});
+
+const passwordSchema = z
+  .string()
+  .min(8, "A senha precisa ter pelo menos 8 caracteres.")
+  .regex(/[A-Z]/, "A senha precisa ter pelo menos uma letra maiuscula.")
+  .regex(/[a-z]/, "A senha precisa ter pelo menos uma letra minuscula.")
+  .regex(/\d/, "A senha precisa ter pelo menos um numero.");
 
 const registerSchema = z.object({
   fullName: z.string().min(3, "Informe seu nome completo."),
   email: z.email("Informe um email valido."),
-  password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres."),
+  password: passwordSchema,
 });
 
 const loginSchema = z.object({
   email: z.email("Informe um email valido."),
-  password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres."),
+  password: z.string().min(1, "Informe sua senha."),
 });
 
-router.post("/register", async (request, response) => {
+router.post("/register", authRateLimiter, async (request, response) => {
   const { fullName, email, password } = registerSchema.parse(request.body);
   const client = await pool.connect();
 
@@ -77,7 +95,7 @@ router.post("/register", async (request, response) => {
   }
 });
 
-router.post("/login", async (request, response) => {
+router.post("/login", authRateLimiter, async (request, response) => {
   const { email, password } = loginSchema.parse(request.body);
 
   const userResult = await pool.query(
